@@ -15,6 +15,16 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 TEXT_TEMPLATE_PATH = PROJECT_ROOT / "templates" / "tenant_file_email.txt"
 HTML_TEMPLATE_PATH = PROJECT_ROOT / "templates" / "tenant_file_email.html"
 PREVIEW_LOG_DIR = PROJECT_ROOT / "logs"
+MAIL_TEMPLATES = {
+    "move_in": (
+        PROJECT_ROOT / "templates" / "tenant_file_move_in.txt",
+        PROJECT_ROOT / "templates" / "tenant_file_move_in.html",
+    ),
+    "move_out": (
+        PROJECT_ROOT / "templates" / "tenant_file_move_out.txt",
+        PROJECT_ROOT / "templates" / "tenant_file_move_out.html",
+    ),
+}
 
 
 class Mailer:
@@ -24,18 +34,21 @@ class Mailer:
 
     def build_tenant_file_body(
         self,
+        mail_type: str,
         recipient_name: str,
         share_link: str,
         share_password: str,
         expiration_date: str,
     ) -> str:
         values = self._template_values(recipient_name, share_link, share_password, expiration_date)
-        return self._render_template(TEXT_TEMPLATE_PATH, values, html_mode=False)
+        text_template_path, _ = self._template_paths(mail_type)
+        return self._render_template(text_template_path, values, html_mode=False)
 
     def send_tenant_file_mail(
         self,
         to_address: object,
         person_id: object,
+        mail_type: str,
         recipient_name: str,
         share_link: str,
         share_password: str,
@@ -46,6 +59,7 @@ class Mailer:
 
         missing = self._missing_required_values(
             {
+                "recipient_email": to_address,
                 "recipient_name": recipient_name,
                 "share_link": share_link,
                 "share_password": share_password,
@@ -58,12 +72,14 @@ class Mailer:
             return {"sent": False, "prepared": False, "skipped": True, "reason": f"missing_{missing}"}
 
         values = self._template_values(recipient_name, share_link, share_password, expiration_date)
-        text_body = self._render_template(TEXT_TEMPLATE_PATH, values, html_mode=False)
-        html_body = self._render_template(HTML_TEMPLATE_PATH, values, html_mode=True)
+        text_template_path, html_template_path = self._template_paths(mail_type)
+        text_body = self._render_template(text_template_path, values, html_mode=False)
+        html_body = self._render_template(html_template_path, values, html_mode=True)
 
         return self.send_mail(
             to_address=to_address,
             person_id=person_id,
+            mail_type=mail_type,
             subject=TENANT_FILE_SUBJECT,
             text_body=text_body,
             html_body=html_body,
@@ -76,6 +92,7 @@ class Mailer:
         self,
         to_address: object,
         person_id: object,
+        mail_type: str,
         subject: str,
         text_body: str,
         html_body: str,
@@ -98,7 +115,7 @@ class Mailer:
                 text_body=safe_text_body,
             )
             print(preview_body)
-            preview_path = self._write_html_preview(person_id, safe_html_body)
+            preview_path = self._write_html_preview(person_id, mail_type, safe_html_body)
             print(f"MAIL PREVIEW HTML: {preview_path}")
             return {
                 "sent": False,
@@ -120,7 +137,7 @@ class Mailer:
         if self.safety.dry_run or not self._has_smtp_config():
             safe_text_body, safe_html_body = self._preview_bodies(text_body, html_body)
             print(self._preview_body(to_address=to_address, subject=subject, text_body=safe_text_body))
-            preview_path = self._write_html_preview(person_id, safe_html_body)
+            preview_path = self._write_html_preview(person_id, mail_type, safe_html_body)
             print(f"MAIL PREVIEW HTML: {preview_path}")
             return {"sent": False, "prepared": True, "to": str(to_address or ""), "subject": subject}
 
@@ -167,6 +184,12 @@ class Mailer:
             rendered = rendered.replace(f"{{{{ {key} }}}}", replacement)
         return rendered
 
+    def _template_paths(self, mail_type: str) -> tuple[Path, Path]:
+        try:
+            return MAIL_TEMPLATES[mail_type]
+        except KeyError as exc:
+            raise ValueError(f"Unsupported mail type: {mail_type}") from exc
+
     def _preview_bodies(self, text_body: str, html_body: str) -> tuple[str, str]:
         if self.settings.use_dummy_values:
             return text_body, html_body
@@ -178,10 +201,11 @@ class Mailer:
         masked = re.sub(r"(Web-Passwort:<br>\s*)[^<\n]*", r"\1***", masked)
         return re.sub(r"(Web password:<br>\s*)[^<\n]*", r"\1***", masked)
 
-    def _write_html_preview(self, person_id: object, html_body: str) -> Path:
+    def _write_html_preview(self, person_id: object, mail_type: str, html_body: str) -> Path:
         PREVIEW_LOG_DIR.mkdir(exist_ok=True)
         safe_person_id = re.sub(r"[^A-Za-z0-9_-]+", "_", str(person_id or "unknown")).strip("_") or "unknown"
-        path = PREVIEW_LOG_DIR / f"mail_preview_{safe_person_id}.html"
+        safe_mail_type = re.sub(r"[^A-Za-z0-9_-]+", "_", mail_type).strip("_") or "mail"
+        path = PREVIEW_LOG_DIR / f"mail_preview_{safe_person_id}_{safe_mail_type}.html"
         path.write_text(html_body, encoding="utf-8")
         return path
 

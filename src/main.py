@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import date, datetime, timedelta
+
 from .config import Settings, load_settings
 from .mailer import Mailer
 from .nextcloud_client import NextcloudClient
@@ -54,6 +56,75 @@ def _recipient_name(row: dict[str, object], settings: Settings) -> str:
     return " ".join(part for part in (vorname, name) if part).strip() or "Mieter/in"
 
 
+def _parse_date(value: object) -> date | None:
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    if not value:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    for candidate in (text[:10], text):
+        try:
+            return datetime.fromisoformat(candidate).date()
+        except ValueError:
+            pass
+    for fmt in ("%d.%m.%Y", "%Y/%m/%d"):
+        try:
+            return datetime.strptime(text, fmt).date()
+        except ValueError:
+            pass
+    return None
+
+
+def _in_send_window(today: date, target_date: date | None, window_days: int) -> bool:
+    if target_date is None:
+        return False
+    return target_date - timedelta(days=window_days) <= today <= target_date
+
+
+def _folder_or_share_created(folder_results: list[dict[str, object]], share_result: dict[str, object]) -> bool:
+    return any(result.get("created") for result in folder_results) or bool(share_result.get("created"))
+
+
+def _due_mail_types(
+    row: dict[str, object],
+    settings: Settings,
+    folder_results: list[dict[str, object]],
+    share_result: dict[str, object],
+) -> list[str]:
+    today = date.today()
+    beginn = _parse_date(row.get("BEGINN") or row.get("beginn"))
+    ende = _parse_date(row.get("ENDE") or row.get("ende"))
+    window_days = settings.mail_send_window_days
+
+    move_in_due = _in_send_window(today, beginn, window_days)
+    if (
+        not move_in_due
+        and settings.allow_short_notice_move_in
+        and beginn is not None
+        and today >= beginn
+        and _folder_or_share_created(folder_results, share_result)
+    ):
+        move_in_due = True
+
+    move_out_due = _in_send_window(today, ende, window_days)
+
+    if settings.mail_type == "move_in":
+        return ["move_in"] if move_in_due else []
+    if settings.mail_type == "move_out":
+        return ["move_out"] if move_out_due else []
+
+    due = []
+    if move_in_due:
+        due.append("move_in")
+    if move_out_due:
+        due.append("move_out")
+    return due
+
+
 def run() -> dict[str, object]:
     settings = load_settings()
     safety = Safety(settings)
@@ -92,6 +163,7 @@ def run() -> dict[str, object]:
         "errors": 0,
     }
     results = []
+    mailed_keys = set()
 
     for row in rows:
         try:
@@ -137,22 +209,44 @@ def run() -> dict[str, object]:
             share_link = str(share_result.get("share_link") or "")
             expiration_date = str(share_result.get("expire_date") or share_expiration_date or "")
 
-            mail_result = mailer.send_tenant_file_mail(
-                mail_to,
-                person_id=row.get("PERSON_ID") or row.get("person_id"),
-                recipient_name=_recipient_name(row, settings),
-                share_link=share_link,
-                share_password=str(share_password or ""),
-                expiration_date=expiration_date,
-            )
-            if settings.use_dummy_values and settings.dummy_email_to and mail_result.get("prepared"):
-                print(f"Dummy email recipient: {settings.dummy_email_to}")
-            if mail_result.get("prepared") or mail_result.get("sent"):
-                stats["mails_prepared_or_sent"] += 1
-            if mail_result.get("preview"):
-                stats["mail_previews_created"] += 1
-            if str(mail_result.get("reason", "")).startswith("missing_"):
-                stats["warnings"] += 1
+            person_id = row.get("PERSON_ID") or row.get("person_id")
+            due_mail_types = _due_mail_types(row, settings, folder_results, share_result)
+            mail_results = []
+
+            if not due_mail_types:
+                print(f"mail skipped, reason=not_due person_id={person_id}")
+                mail_results.append({"sent": False, "prepared": False, "skipped": True, "reason": "not_due"})
+
+            for mail_type in due_mail_types:
+                mail_key = (str(person_id), mail_type)
+                if mail_key in mailed_keys:
+                    print(f"mail skipped, reason=duplicate_in_run person_id={person_id} mail_type={mail_type}")
+                    mail_results.append(
+                        {"sent": False, "prepared": False, "skipped": True, "reason": "duplicate_in_run"}
+                    )
+                    continue
+                mailed_keys.add(mail_key)
+
+                mail_result = mailer.send_tenant_file_mail(
+                    mail_to,
+                    person_id=person_id,
+                    mail_type=mail_type,
+                    recipient_name=_recipient_name(row, settings),
+                    share_link=share_link,
+                    share_password=str(share_password or ""),
+                    expiration_date=expiration_date,
+                )
+                mail_result["mail_type"] = mail_type
+                mail_results.append(mail_result)
+
+                if settings.use_dummy_values and settings.dummy_email_to and mail_result.get("prepared"):
+                    print(f"Dummy email recipient: {settings.dummy_email_to}")
+                if mail_result.get("prepared") or mail_result.get("sent"):
+                    stats["mails_prepared_or_sent"] += 1
+                if mail_result.get("preview"):
+                    stats["mail_previews_created"] += 1
+                if str(mail_result.get("reason", "")).startswith("missing_"):
+                    stats["warnings"] += 1
 
             results.append(
                 {
@@ -160,7 +254,7 @@ def run() -> dict[str, object]:
                     "person_path": paths.person_path,
                     "folders": folder_results,
                     "share": share_result,
-                    "mail": mail_result,
+                    "mail": mail_results,
                 }
             )
         except Exception as exc:

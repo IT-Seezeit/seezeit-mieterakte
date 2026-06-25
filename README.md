@@ -28,10 +28,12 @@ Technischer MVP fuer die Synchronisation von Oracle-Mieterdaten in eine Nextclou
 - `SEND_EMAILS=true`: nur mit `ONLY_DUMMY_PERSON=true` und genau einer Dummy-ID
 - `PREVIEW_EMAILS=true`: nur mit `ONLY_DUMMY_PERSON=true`; erzeugt eine zweisprachige Mailvorschau aus `templates/` ohne Versand
 - `USE_DUMMY_VALUES=true`: nur mit `ONLY_DUMMY_PERSON=true`; kann Test-Passwort, Ablaufdatum und Mailadresse fuer Dummy-Laeufe ueberschreiben
+- `MAIL_TYPE=auto|move_in|move_out`: waehlt die faellige Einzugs- oder Auszugsmail
+- `MAIL_SEND_WINDOW_DAYS=7`: Versandfenster vor `PVV.Beginn` bzw. `PVV.Ende`
 
 ## Mailtemplates
 
-Mailversand und Preview verwenden `templates/tenant_file_email.txt` und `templates/tenant_file_email.html` als multipart/alternative. Preview-HTML wird lokal unter `logs/` abgelegt; echte Passwoerter werden in normalen Previews maskiert.
+Mailversand und Preview verwenden die Einzug-/Auszug-Templates unter `templates/` als multipart/alternative. Preview-HTML wird lokal unter `logs/` abgelegt; echte Passwoerter werden in normalen Previews maskiert.
 
 ## Benoetigte Umgebungsvariablen
 

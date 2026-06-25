@@ -41,6 +41,9 @@ class Settings:
     mail_username: str
     mail_password: str
     mail_from: str
+    mail_type: str
+    mail_send_window_days: int
+    allow_short_notice_move_in: bool
 
     @property
     def effective_dummy_person_ids(self) -> tuple[str, ...]:
@@ -91,6 +94,20 @@ def _parse_dummy_person_ids(value: str) -> tuple[str, ...]:
     return tuple(ids)
 
 
+def _mail_type_env() -> str:
+    mail_type = os.getenv("MAIL_TYPE", "auto").strip().lower()
+    if mail_type not in {"auto", "move_in", "move_out"}:
+        raise ValueError("MAIL_TYPE must be one of: auto, move_in, move_out.")
+    return mail_type
+
+
+def _mail_send_window_days_env() -> int:
+    value = int(os.getenv("MAIL_SEND_WINDOW_DAYS", "7"))
+    if value < 0:
+        raise ValueError("MAIL_SEND_WINDOW_DAYS must be 0 or greater.")
+    return value
+
+
 def load_settings() -> Settings:
     load_dotenv()
     dummy_person_id = _validate_person_id(os.getenv("DUMMY_PERSON_ID", ""), "DUMMY_PERSON_ID")
@@ -128,4 +145,7 @@ def load_settings() -> Settings:
         mail_username=os.getenv("MAIL_USERNAME", ""),
         mail_password=os.getenv("MAIL_PASSWORD", ""),
         mail_from=os.getenv("MAIL_FROM", ""),
+        mail_type=_mail_type_env(),
+        mail_send_window_days=_mail_send_window_days_env(),
+        allow_short_notice_move_in=_bool_env("ALLOW_SHORT_NOTICE_MOVE_IN", True),
     )
