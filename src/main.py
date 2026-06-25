@@ -51,9 +51,10 @@ def run() -> dict[str, object]:
     print(f"Oracle records read: {len(rows)}")
 
     if settings.only_dummy_person:
+        dummy_person_ids = set(settings.effective_dummy_person_ids)
         rows = [
             row for row in rows
-            if str(row.get("PERSON_ID") or row.get("person_id")) == settings.dummy_person_id
+            if str(row.get("PERSON_ID") or row.get("person_id")) in dummy_person_ids
         ]
     print(f"Records after dummy filter: {len(rows)}")
     if settings.dry_run and settings.only_dummy_person and not rows:

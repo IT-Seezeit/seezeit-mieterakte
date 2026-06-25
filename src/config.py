@@ -18,6 +18,7 @@ class Settings:
     send_emails: bool
     only_dummy_person: bool
     dummy_person_id: str
+    dummy_person_ids: tuple[str, ...]
     nextcloud_base_url: str
     nextcloud_username: str
     nextcloud_app_password: str
@@ -34,6 +35,14 @@ class Settings:
     mail_password: str
     mail_from: str
 
+    @property
+    def effective_dummy_person_ids(self) -> tuple[str, ...]:
+        if self.dummy_person_ids:
+            return self.dummy_person_ids
+        if self.dummy_person_id:
+            return (self.dummy_person_id,)
+        return ()
+
 
 def _bool_env(name: str, default: bool = False) -> bool:
     value = os.getenv(name)
@@ -42,8 +51,33 @@ def _bool_env(name: str, default: bool = False) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "y", "on"}
 
 
+def _validate_person_id(value: str, env_name: str) -> str:
+    person_id = value.strip()
+    if not person_id:
+        return ""
+    if not person_id.isdigit():
+        raise ValueError(f"{env_name} contains invalid Person-ID {value!r}. Only digits are allowed.")
+    return person_id
+
+
+def _parse_dummy_person_ids(value: str) -> tuple[str, ...]:
+    raw_value = value.strip()
+    if not raw_value:
+        return ()
+
+    ids = []
+    for part in raw_value.split(","):
+        person_id = part.strip()
+        if not person_id:
+            raise ValueError("DUMMY_PERSON_IDS contains an empty value. Use comma-separated numeric IDs.")
+        ids.append(_validate_person_id(person_id, "DUMMY_PERSON_IDS"))
+    return tuple(ids)
+
+
 def load_settings() -> Settings:
     load_dotenv()
+    dummy_person_id = _validate_person_id(os.getenv("DUMMY_PERSON_ID", ""), "DUMMY_PERSON_ID")
+    dummy_person_ids = _parse_dummy_person_ids(os.getenv("DUMMY_PERSON_IDS", ""))
 
     return Settings(
         dry_run=_bool_env("DRY_RUN", True),
@@ -51,7 +85,8 @@ def load_settings() -> Settings:
         create_shares=_bool_env("CREATE_SHARES", False),
         send_emails=_bool_env("SEND_EMAILS", False),
         only_dummy_person=_bool_env("ONLY_DUMMY_PERSON", True),
-        dummy_person_id=os.getenv("DUMMY_PERSON_ID", "173884"),
+        dummy_person_id=dummy_person_id,
+        dummy_person_ids=dummy_person_ids,
         nextcloud_base_url=os.getenv("NEXTCLOUD_BASE_URL", ""),
         nextcloud_username=os.getenv("NEXTCLOUD_USERNAME", ""),
         nextcloud_app_password=os.getenv("NEXTCLOUD_APP_PASSWORD", ""),
