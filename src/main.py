@@ -8,6 +8,35 @@ from .path_builder import build_target_paths
 from .safety import Safety
 
 
+TEST_CANDIDATE_FIELDS = [
+    ("PERSON_ID", "PERSON_ID"),
+    ("Vorname", "VORNAME"),
+    ("Name", "NAME"),
+    ("EMail", "EMAIL"),
+    ("Wohnheim_Suchname", "WOHNHEIM_SUCHNAME"),
+    ("Wohnheim_Name", "WOHNHEIM_NAME"),
+    ("VO_Suchname", "VO_SUCHNAME"),
+    ("Beginn", "BEGINN"),
+    ("Ende", "ENDE"),
+    ("StatusName", "STATUSNAME"),
+]
+
+
+def _value(row: dict[str, object], key: str) -> object:
+    return row.get(key) or row.get(key.lower()) or ""
+
+
+def _log_test_candidates(rows: list[dict[str, object]], limit: int = 10) -> None:
+    candidates = rows[:limit]
+    print(f"DRY-RUN possible test candidates, max {limit}: {len(candidates)} shown")
+    for index, row in enumerate(candidates, start=1):
+        values = [
+            f"{label}={_value(row, key)}"
+            for label, key in TEST_CANDIDATE_FIELDS
+        ]
+        print(f"Candidate {index}: " + " | ".join(values))
+
+
 def run() -> dict[str, object]:
     settings = load_settings()
     safety = Safety(settings)
@@ -18,6 +47,7 @@ def run() -> dict[str, object]:
     mailer = Mailer(settings, safety)
 
     rows = oracle.fetch_mieter()
+    oracle_rows = rows
     print(f"Oracle records read: {len(rows)}")
 
     if settings.only_dummy_person:
@@ -26,6 +56,8 @@ def run() -> dict[str, object]:
             if str(row.get("PERSON_ID") or row.get("person_id")) == settings.dummy_person_id
         ]
     print(f"Records after dummy filter: {len(rows)}")
+    if settings.dry_run and settings.only_dummy_person and not rows:
+        _log_test_candidates(oracle_rows)
 
     stats = {
         "target_paths": 0,
