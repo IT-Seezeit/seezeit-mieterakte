@@ -24,12 +24,22 @@ class Safety:
                 "ONLY_DUMMY_PERSON=true requires DUMMY_PERSON_ID or DUMMY_PERSON_IDS to be set."
             )
         if self.settings.create_shares:
-            self._require_dummy_mode("CREATE_SHARES")
+            self._require_share_dummy_mode()
         if self.settings.send_emails:
-            self._require_dummy_mode("SEND_EMAILS")
+            self._require_email_dummy_mode()
 
-    def _require_dummy_mode(self, feature: str) -> None:
+    def _require_share_dummy_mode(self) -> None:
         if not self.settings.only_dummy_person:
-            raise RuntimeError(f"{feature}=true is only allowed with ONLY_DUMMY_PERSON=true.")
-        if self.settings.effective_dummy_person_ids != ("173884",):
-            raise RuntimeError(f"{feature}=true is only allowed for dummy person 173884.")
+            raise RuntimeError("CREATE_SHARES=true is only allowed with ONLY_DUMMY_PERSON=true.")
+        if not self.settings.effective_dummy_person_ids:
+            raise RuntimeError("CREATE_SHARES=true requires DUMMY_PERSON_ID or DUMMY_PERSON_IDS to be set.")
+
+    def _require_email_dummy_mode(self) -> None:
+        if not self.settings.only_dummy_person:
+            raise RuntimeError("SEND_EMAILS=true is only allowed with ONLY_DUMMY_PERSON=true.")
+        if not self.settings.effective_dummy_person_ids:
+            raise RuntimeError("SEND_EMAILS=true requires DUMMY_PERSON_ID or DUMMY_PERSON_IDS to be set.")
+        if len(self.settings.effective_dummy_person_ids) != 1:
+            raise RuntimeError(
+                "SEND_EMAILS=true is only allowed when exactly one dummy person is configured."
+            )
