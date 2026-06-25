@@ -79,6 +79,7 @@ def run() -> dict[str, object]:
         "shares_updated": 0,
         "shares_skipped": 0,
         "mails_prepared_or_sent": 0,
+        "mail_previews_created": 0,
         "warnings": 0,
         "errors": 0,
     }
@@ -132,11 +133,18 @@ def run() -> dict[str, object]:
                 mail_to,
                 "Ihre Mieterakte",
                 f"{body_prefix}Ihre Mieterakte ist vorbereitet: {paths.person_path}",
+                share_link=str(share_result.get("share_link") or ""),
+                expiration_date=str(share_result.get("expire_date") or share_expiration_date or ""),
+                dummy_password_set=bool(settings.use_dummy_values and settings.dummy_share_password),
             )
             if settings.use_dummy_values and settings.dummy_email_to and mail_result.get("prepared"):
                 print(f"Dummy email recipient: {settings.dummy_email_to}")
             if mail_result.get("prepared") or mail_result.get("sent"):
                 stats["mails_prepared_or_sent"] += 1
+            if mail_result.get("preview"):
+                stats["mail_previews_created"] += 1
+            if mail_result.get("reason") == "missing_share_link":
+                stats["warnings"] += 1
 
             results.append(
                 {
@@ -158,6 +166,7 @@ def run() -> dict[str, object]:
     print(f"Shares updated: {stats['shares_updated']}")
     print(f"Shares skipped: {stats['shares_skipped']}")
     print(f"Mails prepared/sent: {stats['mails_prepared_or_sent']}")
+    print(f"Mail previews created: {stats['mail_previews_created']}")
     print(f"Warnings: {stats['warnings']}")
     print(f"Errors: {stats['errors']}")
 

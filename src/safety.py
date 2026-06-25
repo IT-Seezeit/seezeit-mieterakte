@@ -29,6 +29,8 @@ class Safety:
             self._require_share_dummy_mode()
         if self.settings.send_emails:
             self._require_email_dummy_mode()
+        if self.settings.preview_emails:
+            self._require_email_preview_mode()
 
     def _require_share_dummy_mode(self) -> None:
         if not self.settings.only_dummy_person:
@@ -45,6 +47,12 @@ class Safety:
             raise RuntimeError(
                 "SEND_EMAILS=true is only allowed when exactly one dummy person is configured."
             )
+
+    def _require_email_preview_mode(self) -> None:
+        if not self.settings.only_dummy_person:
+            raise RuntimeError("PREVIEW_EMAILS=true is only allowed with ONLY_DUMMY_PERSON=true.")
+        if not self.settings.effective_dummy_person_ids:
+            raise RuntimeError("PREVIEW_EMAILS=true requires DUMMY_PERSON_ID or DUMMY_PERSON_IDS to be set.")
 
     def _require_dummy_values_mode(self) -> None:
         if not self.settings.only_dummy_person:

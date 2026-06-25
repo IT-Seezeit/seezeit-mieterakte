@@ -26,6 +26,7 @@ Technischer MVP fuer die Synchronisation von Oracle-Mieterdaten in eine Nextclou
 - `CREATE_FOLDERS=true` mit `DRY_RUN=false`: Ordner werden idempotent per WebDAV erstellt
 - `CREATE_SHARES=true`: nur mit `ONLY_DUMMY_PERSON=true` und expliziter Dummy-ID
 - `SEND_EMAILS=true`: nur mit `ONLY_DUMMY_PERSON=true` und genau einer Dummy-ID
+- `PREVIEW_EMAILS=true`: nur mit `ONLY_DUMMY_PERSON=true`; erzeugt eine Mailvorschau ohne Versand
 - `USE_DUMMY_VALUES=true`: nur mit `ONLY_DUMMY_PERSON=true`; kann Test-Passwort, Ablaufdatum und Mailadresse fuer Dummy-Laeufe ueberschreiben
 
 ## Benoetigte Umgebungsvariablen

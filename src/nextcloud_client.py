@@ -58,6 +58,7 @@ class NextcloudClient:
                 print(f"WARN Found {len(existing_shares)} existing public link shares for {path}.")
             selected_share = self._select_share(existing_shares)
             share_id = str(selected_share.get("id", ""))
+            share_link = self._share_url(selected_share)
             existing_expire_date = self._normalize_expire_date(
                 selected_share.get("expiration")
                 or selected_share.get("expiration_date")
@@ -72,6 +73,8 @@ class NextcloudClient:
                     "skipped": True,
                     "reason": "unchanged",
                     "share_id": share_id,
+                    "share_link": share_link,
+                    "expire_date": expire_date,
                     "warning": len(existing_shares) > 1,
                 }
 
@@ -101,6 +104,7 @@ class NextcloudClient:
                 "updated": True,
                 "skipped": False,
                 "share_id": share_id,
+                "share_link": share_link,
                 "expire_date": expire_date,
                 "warning": len(existing_shares) > 1,
             }
@@ -133,8 +137,10 @@ class NextcloudClient:
                 action="create",
             )
         response.raise_for_status()
+        share_data = self._extract_ocs_data(response)
+        share_link = self._share_url(share_data) if isinstance(share_data, dict) else ""
         print(f"Share created: path={path} expire_date={expire_date}")
-        return {"path": path, "created": True, "expire_date": expire_date}
+        return {"path": path, "created": True, "expire_date": expire_date, "share_link": share_link}
 
     def _webdav_url(self, path: str) -> str:
         base_url = self.settings.nextcloud_base_url.rstrip("/")
@@ -192,6 +198,11 @@ class NextcloudClient:
 
     def _same_share_path(self, actual_path: str, expected_path: str) -> bool:
         return actual_path.strip("/") == expected_path.strip("/")
+
+    def _share_url(self, share: object) -> str:
+        if not isinstance(share, dict):
+            return ""
+        return str(share.get("url") or share.get("share_url") or "")
 
     def _extract_ocs_data(self, response: object) -> object:
         try:

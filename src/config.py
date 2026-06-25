@@ -17,6 +17,7 @@ class Settings:
     create_folders: bool
     create_shares: bool
     send_emails: bool
+    preview_emails: bool
     only_dummy_person: bool
     dummy_person_id: str
     dummy_person_ids: tuple[str, ...]
@@ -100,6 +101,7 @@ def load_settings() -> Settings:
         create_folders=_bool_env("CREATE_FOLDERS", False),
         create_shares=_bool_env("CREATE_SHARES", False),
         send_emails=_bool_env("SEND_EMAILS", False),
+        preview_emails=_bool_env("PREVIEW_EMAILS", False),
         only_dummy_person=_bool_env("ONLY_DUMMY_PERSON", True),
         dummy_person_id=dummy_person_id,
         dummy_person_ids=dummy_person_ids,
