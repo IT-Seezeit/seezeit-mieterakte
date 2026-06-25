@@ -1,0 +1,54 @@
+Sehr geehrte/r {{ recipient_name }},
+
+bald findet Ihr Auszug statt. Hier sind nochmal Ihre Zugangsdaten für die digitale Mieterakte.
+
+Hier sind die Zugangsdaten:
+
+Link zur digitalen Mieterakte:
+{{ share_link }}
+
+Web-Passwort:
+{{ share_password }}
+
+Die Freigabe ist gültig bis:
+{{ expiration_date }}
+
+In der Mieterakte finden Sie wichtige Dokumente wie Ihr Einzugs- und Auszugsprotokoll sowie die Wohnungsgeberbescheinigung.
+
+Bei weiteren Fragen stehen wir Ihnen gerne zur Verfügung.
+
+Mit freundlichen Grüßen
+
+Dear {{ recipient_name }},
+
+Your move-out date is approaching. Here are your login details for the digital tenant file once again.
+
+Here are the login details:
+
+Link to the digital tenant file:
+{{ share_link }}
+
+Web password:
+{{ share_password }}
+
+The share is valid until:
+{{ expiration_date }}
+
+In the tenant file, you will find important documents such as your move-in and move-out reports and the landlord's certificate.
+
+If you have any further questions, please do not hesitate to contact us.
+
+Kind regards
+
+Abteilung Wohnen
+Rheingutstraße 34
+78462 Konstanz
+Tel +49 7531 - 9782 800
+wohnen@seezeit.com
+https://seezeit.com
+
+Seezeit Studierendenwerk Bodensee AöR
+Universitätsstraße 10
+78464 Konstanz
+Geschäftsführerin Gisa Klaus
+Datenschutzerklärung

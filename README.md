@@ -26,8 +26,12 @@ Technischer MVP fuer die Synchronisation von Oracle-Mieterdaten in eine Nextclou
 - `CREATE_FOLDERS=true` mit `DRY_RUN=false`: Ordner werden idempotent per WebDAV erstellt
 - `CREATE_SHARES=true`: nur mit `ONLY_DUMMY_PERSON=true` und expliziter Dummy-ID
 - `SEND_EMAILS=true`: nur mit `ONLY_DUMMY_PERSON=true` und genau einer Dummy-ID
-- `PREVIEW_EMAILS=true`: nur mit `ONLY_DUMMY_PERSON=true`; erzeugt eine Mailvorschau ohne Versand
+- `PREVIEW_EMAILS=true`: nur mit `ONLY_DUMMY_PERSON=true`; erzeugt eine zweisprachige Mailvorschau aus `templates/` ohne Versand
 - `USE_DUMMY_VALUES=true`: nur mit `ONLY_DUMMY_PERSON=true`; kann Test-Passwort, Ablaufdatum und Mailadresse fuer Dummy-Laeufe ueberschreiben
+
+## Mailtemplates
+
+Mailversand und Preview verwenden `templates/tenant_file_email.txt` und `templates/tenant_file_email.html` als multipart/alternative. Preview-HTML wird lokal unter `logs/` abgelegt; echte Passwoerter werden in normalen Previews maskiert.
 
 ## Benoetigte Umgebungsvariablen
 

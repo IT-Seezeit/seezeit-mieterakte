@@ -46,6 +46,14 @@ def _log_dummy_values(settings: Settings) -> None:
         print(f"Dummy email recipient: {settings.dummy_email_to}")
 
 
+def _recipient_name(row: dict[str, object], settings: Settings) -> str:
+    if settings.use_dummy_values and settings.dummy_email_name:
+        return settings.dummy_email_name
+    vorname = str(row.get("VORNAME") or row.get("vorname") or "").strip()
+    name = str(row.get("NAME") or row.get("name") or "").strip()
+    return " ".join(part for part in (vorname, name) if part).strip() or "Mieter/in"
+
+
 def run() -> dict[str, object]:
     settings = load_settings()
     safety = Safety(settings)
@@ -126,16 +134,16 @@ def run() -> dict[str, object]:
             mail_to = row.get("EMAIL") or row.get("email")
             if settings.use_dummy_values and settings.dummy_email_to:
                 mail_to = settings.dummy_email_to
-            greeting_name = settings.dummy_email_name if settings.use_dummy_values else ""
-            body_prefix = f"Hallo {greeting_name},\n\n" if greeting_name else ""
+            share_link = str(share_result.get("share_link") or "")
+            expiration_date = str(share_result.get("expire_date") or share_expiration_date or "")
 
-            mail_result = mailer.send_mail(
+            mail_result = mailer.send_tenant_file_mail(
                 mail_to,
-                "Ihre Mieterakte",
-                f"{body_prefix}Ihre Mieterakte ist vorbereitet: {paths.person_path}",
-                share_link=str(share_result.get("share_link") or ""),
-                expiration_date=str(share_result.get("expire_date") or share_expiration_date or ""),
-                dummy_password_set=bool(settings.use_dummy_values and settings.dummy_share_password),
+                person_id=row.get("PERSON_ID") or row.get("person_id"),
+                recipient_name=_recipient_name(row, settings),
+                share_link=share_link,
+                share_password=str(share_password or ""),
+                expiration_date=expiration_date,
             )
             if settings.use_dummy_values and settings.dummy_email_to and mail_result.get("prepared"):
                 print(f"Dummy email recipient: {settings.dummy_email_to}")
@@ -143,7 +151,7 @@ def run() -> dict[str, object]:
                 stats["mails_prepared_or_sent"] += 1
             if mail_result.get("preview"):
                 stats["mail_previews_created"] += 1
-            if mail_result.get("reason") == "missing_share_link":
+            if str(mail_result.get("reason", "")).startswith("missing_"):
                 stats["warnings"] += 1
 
             results.append(
