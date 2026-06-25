@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import date, datetime, timedelta
 from urllib.parse import quote
+from xml.etree import ElementTree
 
 from .config import Settings
 from .safety import Safety
@@ -35,7 +36,13 @@ class NextcloudClient:
         response.raise_for_status()
         return {"path": path, "created": False, "skipped_existing": False}
 
-    def create_share(self, path: str, password: object, end_date: object) -> dict[str, object]:
+    def create_share(
+        self,
+        path: str,
+        password: object,
+        end_date: object,
+        expiration_date: str | None = None,
+    ) -> dict[str, object]:
         if not self.settings.create_shares:
             return {"path": path, "created": False, "skipped": True, "reason": "disabled"}
         if self.safety.dry_run:
@@ -45,20 +52,31 @@ class NextcloudClient:
             return {"path": path, "created": False, "skipped": True, "reason": "missing_password"}
 
         self._require_requests()
-        expire_date = self._expire_date(end_date)
+        expire_date = expiration_date or self._expire_date(end_date)
+        share_type = 3
+        permissions = 1
         response = requests.post(
             self._ocs_url(),
             auth=(self.settings.nextcloud_username, self.settings.nextcloud_app_password),
             headers={"OCS-APIRequest": "true", "Accept": "application/json"},
             data={
                 "path": path,
-                "shareType": 3,
-                "permissions": 1,
+                "shareType": share_type,
+                "permissions": permissions,
                 "password": str(password),
                 "expireDate": expire_date,
             },
             timeout=30,
         )
+        if not response.ok:
+            self._log_share_api_error(
+                response=response,
+                path=path,
+                share_type=share_type,
+                permissions=permissions,
+                expire_date=expire_date,
+                password_set=bool(password),
+            )
         response.raise_for_status()
         return {"path": path, "created": True, "expire_date": expire_date}
 
@@ -81,6 +99,50 @@ class NextcloudClient:
         else:
             end = date.today()
         return (end + timedelta(days=30)).isoformat()
+
+    def _log_share_api_error(
+        self,
+        response: object,
+        path: str,
+        share_type: int,
+        permissions: int,
+        expire_date: str,
+        password_set: bool,
+    ) -> None:
+        print("ERROR Nextcloud share API request failed.")
+        print(f"Share path: {path}")
+        print(f"Share type: {share_type}")
+        print(f"Permissions: {permissions}")
+        print(f"Expiration date: {expire_date}")
+        print(f"Password set: {password_set}")
+        print(f"HTTP status code: {response.status_code}")
+        print(f"Response body: {response.text}")
+
+        ocs_message = self._extract_ocs_meta_message(response)
+        if ocs_message:
+            print(f"OCS meta message: {ocs_message}")
+
+    def _extract_ocs_meta_message(self, response: object) -> str:
+        try:
+            payload = response.json()
+        except ValueError:
+            payload = None
+
+        if isinstance(payload, dict):
+            meta = payload.get("ocs", {}).get("meta", {})
+            message = meta.get("message")
+            if message:
+                return str(message)
+
+        try:
+            root = ElementTree.fromstring(response.text)
+        except ElementTree.ParseError:
+            return ""
+
+        for element in root.iter():
+            if element.tag.lower().endswith("message") and element.text:
+                return element.text
+        return ""
 
     def _require_requests(self) -> None:
         if requests is None:

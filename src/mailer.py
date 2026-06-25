@@ -32,7 +32,7 @@ class Mailer:
                 smtp.login(self.settings.mail_username, self.settings.mail_password)
             smtp.send_message(message)
 
-        return {"sent": True, "prepared": False, **preview}
+        return {"sent": True, "prepared": False}
 
     def _has_smtp_config(self) -> bool:
         return bool(self.settings.mail_smtp_host and self.settings.mail_from)

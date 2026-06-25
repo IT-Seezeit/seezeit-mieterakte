@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .config import load_settings
+from .config import Settings, load_settings
 from .mailer import Mailer
 from .nextcloud_client import NextcloudClient
 from .oracle_client import OracleClient
@@ -37,10 +37,21 @@ def _log_test_candidates(rows: list[dict[str, object]], limit: int = 10) -> None
         print(f"Candidate {index}: " + " | ".join(values))
 
 
+def _log_dummy_values(settings: Settings) -> None:
+    print("Dummy values active: true")
+    print(f"Dummy share password set: {bool(settings.dummy_share_password)}")
+    if settings.dummy_share_expiration_date:
+        print(f"Dummy share expiration date: {settings.dummy_share_expiration_date}")
+    if settings.dummy_email_to and not settings.send_emails:
+        print(f"Dummy email recipient: {settings.dummy_email_to}")
+
+
 def run() -> dict[str, object]:
     settings = load_settings()
     safety = Safety(settings)
     safety.validate()
+    if settings.use_dummy_values:
+        _log_dummy_values(settings)
 
     oracle = OracleClient(settings)
     nextcloud = NextcloudClient(settings, safety)
@@ -89,21 +100,36 @@ def run() -> dict[str, object]:
                 if result.get("dry_run"):
                     print(f"DRY-RUN folder: {folder}")
 
+            share_password = row.get("WEBPASSWORT") or row.get("webpasswort")
+            share_expiration_date = None
+            if settings.use_dummy_values:
+                share_password = settings.dummy_share_password
+                share_expiration_date = settings.dummy_share_expiration_date
+
             share_result = nextcloud.create_share(
                 paths.person_path,
-                row.get("WEBPASSWORT") or row.get("webpasswort"),
+                share_password,
                 row.get("ENDE") or row.get("ende"),
+                expiration_date=share_expiration_date,
             )
             if share_result.get("created"):
                 stats["shares_created"] += 1
             if share_result.get("skipped") or share_result.get("dry_run"):
                 stats["shares_skipped"] += 1
 
+            mail_to = row.get("EMAIL") or row.get("email")
+            if settings.use_dummy_values and settings.dummy_email_to:
+                mail_to = settings.dummy_email_to
+            greeting_name = settings.dummy_email_name if settings.use_dummy_values else ""
+            body_prefix = f"Hallo {greeting_name},\n\n" if greeting_name else ""
+
             mail_result = mailer.send_mail(
-                row.get("EMAIL") or row.get("email"),
+                mail_to,
                 "Ihre Mieterakte",
-                f"Ihre Mieterakte ist vorbereitet: {paths.person_path}",
+                f"{body_prefix}Ihre Mieterakte ist vorbereitet: {paths.person_path}",
             )
+            if settings.use_dummy_values and settings.dummy_email_to and mail_result.get("prepared"):
+                print(f"Dummy email recipient: {settings.dummy_email_to}")
             if mail_result.get("prepared") or mail_result.get("sent"):
                 stats["mails_prepared_or_sent"] += 1
 

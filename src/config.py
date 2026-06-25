@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from datetime import datetime
 
 try:
     from dotenv import load_dotenv
@@ -19,6 +20,11 @@ class Settings:
     only_dummy_person: bool
     dummy_person_id: str
     dummy_person_ids: tuple[str, ...]
+    use_dummy_values: bool
+    dummy_share_password: str
+    dummy_share_expiration_date: str
+    dummy_email_to: str
+    dummy_email_name: str
     nextcloud_base_url: str
     nextcloud_username: str
     nextcloud_app_password: str
@@ -42,6 +48,16 @@ class Settings:
         if self.dummy_person_id:
             return (self.dummy_person_id,)
         return ()
+
+    @property
+    def dummy_share_expiration_date_is_valid(self) -> bool:
+        if not self.dummy_share_expiration_date:
+            return False
+        try:
+            parsed = datetime.strptime(self.dummy_share_expiration_date, "%Y-%m-%d")
+        except ValueError:
+            return False
+        return parsed.strftime("%Y-%m-%d") == self.dummy_share_expiration_date
 
 
 def _bool_env(name: str, default: bool = False) -> bool:
@@ -87,6 +103,11 @@ def load_settings() -> Settings:
         only_dummy_person=_bool_env("ONLY_DUMMY_PERSON", True),
         dummy_person_id=dummy_person_id,
         dummy_person_ids=dummy_person_ids,
+        use_dummy_values=_bool_env("USE_DUMMY_VALUES", False),
+        dummy_share_password=os.getenv("DUMMY_SHARE_PASSWORD", "").strip(),
+        dummy_share_expiration_date=os.getenv("DUMMY_SHARE_EXPIRATION_DATE", "").strip(),
+        dummy_email_to=os.getenv("DUMMY_EMAIL_TO", "").strip(),
+        dummy_email_name=os.getenv("DUMMY_EMAIL_NAME", "").strip(),
         nextcloud_base_url=os.getenv("NEXTCLOUD_BASE_URL", ""),
         nextcloud_username=os.getenv("NEXTCLOUD_USERNAME", ""),
         nextcloud_app_password=os.getenv("NEXTCLOUD_APP_PASSWORD", ""),
