@@ -76,6 +76,7 @@ def run() -> dict[str, object]:
         "folders_created": 0,
         "folders_skipped_existing": 0,
         "shares_created": 0,
+        "shares_updated": 0,
         "shares_skipped": 0,
         "mails_prepared_or_sent": 0,
         "warnings": 0,
@@ -114,8 +115,12 @@ def run() -> dict[str, object]:
             )
             if share_result.get("created"):
                 stats["shares_created"] += 1
+            if share_result.get("updated"):
+                stats["shares_updated"] += 1
             if share_result.get("skipped") or share_result.get("dry_run"):
                 stats["shares_skipped"] += 1
+            if share_result.get("warning"):
+                stats["warnings"] += 1
 
             mail_to = row.get("EMAIL") or row.get("email")
             if settings.use_dummy_values and settings.dummy_email_to:
@@ -150,8 +155,10 @@ def run() -> dict[str, object]:
     print(f"Folders created: {stats['folders_created']}")
     print(f"Existing folders skipped: {stats['folders_skipped_existing']}")
     print(f"Shares created: {stats['shares_created']}")
+    print(f"Shares updated: {stats['shares_updated']}")
     print(f"Shares skipped: {stats['shares_skipped']}")
     print(f"Mails prepared/sent: {stats['mails_prepared_or_sent']}")
+    print(f"Warnings: {stats['warnings']}")
     print(f"Errors: {stats['errors']}")
 
     return {
