@@ -5,6 +5,9 @@ from dataclasses import dataclass
 from pathlib import PurePosixPath
 
 
+FOLDER_PREFIX = "1160_"
+
+
 @dataclass(frozen=True)
 class TargetPaths:
     residence_path: str
@@ -47,6 +50,10 @@ def normalize_folder_name(value: object, fallback: str = "unbekannt") -> str:
     return normalized or fallback
 
 
+def add_folder_prefix(name: str) -> str:
+    return name if name.startswith(FOLDER_PREFIX) else f"{FOLDER_PREFIX}{name}"
+
+
 def parse_vo_suchname(vo_suchname: object) -> dict[str, str]:
     parts = str(vo_suchname or "").split("-", 2)
     if len(parts) != 3 or not all(parts):
@@ -73,10 +80,12 @@ def build_target_paths(root_path: str, row: dict[str, object]) -> TargetPaths:
     vorname = normalize_folder_name(row.get("VORNAME") or row.get("vorname"))
     name = normalize_folder_name(row.get("NAME") or row.get("name"))
 
-    residence_folder = f"{wohnheim_suchname}-{wohnheim_name}"
-    wg_folder = f"WG-{parsed['wg']}"
-    room_folder = f"Zi-{parsed['room']}"
-    person_folder = f"{person_id}-{vorname}-{name}"
+    residence_folder = add_folder_prefix(f"{wohnheim_suchname}-{wohnheim_name}")
+    wg_folder = add_folder_prefix(f"WG-{parsed['wg']}")
+    room_folder = add_folder_prefix(f"Zi-{parsed['room']}")
+    person_folder = add_folder_prefix(f"{person_id}-{vorname}-{name}")
+    history_folder = add_folder_prefix("Historie")
+    past_tenants_folder = add_folder_prefix("Vergangene-Mieter")
 
     root = PurePosixPath(root_path)
     residence_path = str(root / residence_folder)
@@ -86,9 +95,9 @@ def build_target_paths(root_path: str, row: dict[str, object]) -> TargetPaths:
     return TargetPaths(
         residence_path=residence_path,
         wg_path=wg_path,
-        wg_history_path=str(PurePosixPath(wg_path) / "Historie"),
+        wg_history_path=str(PurePosixPath(wg_path) / history_folder),
         room_path=room_path,
-        room_history_path=str(PurePosixPath(room_path) / "Historie"),
-        past_tenants_path=str(PurePosixPath(room_path) / "Vergangene-Mieter"),
+        room_history_path=str(PurePosixPath(room_path) / history_folder),
+        past_tenants_path=str(PurePosixPath(room_path) / past_tenants_folder),
         person_path=str(PurePosixPath(room_path) / person_folder),
     )

@@ -33,7 +33,11 @@ Technischer MVP fuer die Synchronisation von Oracle-Mieterdaten in eine Nextclou
 
 ## Mailtemplates
 
-Mailversand und Preview verwenden die Einzug-/Auszug-Templates unter `templates/` als multipart/alternative. Preview-HTML wird lokal unter `logs/` abgelegt; echte Passwoerter werden in normalen Previews maskiert.
+Mailversand und Preview verwenden `templates/mail_move_in.*` und `templates/mail_move_out.*` als multipart/alternative. Die unterstuetzten Platzhalter sind in `templates/README.md` dokumentiert. Preview-HTML wird lokal unter `logs/` abgelegt; echte Passwoerter werden in normalen Previews maskiert.
+
+## Nextcloud-Pfade
+
+Der konfigurierte `NEXTCLOUD_TEAMFOLDER_PATH` bleibt unveraendert. Alle dynamisch erzeugten Ordnersegmente darunter erhalten den Prefix `1160_`, zum Beispiel `1160_WG-45`, `1160_Zi-01-52-0`, `1160_Historie` und `1160_Vergangene-Mieter`.
 
 ## Benoetigte Umgebungsvariablen
 

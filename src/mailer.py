@@ -12,19 +12,23 @@ from .safety import Safety
 
 TENANT_FILE_SUBJECT = "Ihre digitale Mieterakte / Your digital tenant file"
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-TEXT_TEMPLATE_PATH = PROJECT_ROOT / "templates" / "tenant_file_email.txt"
-HTML_TEMPLATE_PATH = PROJECT_ROOT / "templates" / "tenant_file_email.html"
 PREVIEW_LOG_DIR = PROJECT_ROOT / "logs"
+ONLINE_PORTAL_LINK = "https://tl1.eu/SWKN/#home"
 MAIL_TEMPLATES = {
     "move_in": (
-        PROJECT_ROOT / "templates" / "tenant_file_move_in.txt",
-        PROJECT_ROOT / "templates" / "tenant_file_move_in.html",
+        PROJECT_ROOT / "templates" / "mail_move_in.txt",
+        PROJECT_ROOT / "templates" / "mail_move_in.html",
     ),
     "move_out": (
-        PROJECT_ROOT / "templates" / "tenant_file_move_out.txt",
-        PROJECT_ROOT / "templates" / "tenant_file_move_out.html",
+        PROJECT_ROOT / "templates" / "mail_move_out.txt",
+        PROJECT_ROOT / "templates" / "mail_move_out.html",
     ),
 }
+REQUIRED_TEMPLATE_PLACEHOLDERS = {
+    "move_in": {"recipient_name", "share_link", "share_password", "online_portal_link"},
+    "move_out": {"recipient_name", "share_link", "share_password", "expiration_date"},
+}
+PLACEHOLDER_PATTERN = re.compile(r"{{\s*([A-Za-z0-9_]+)\s*}}")
 
 
 class Mailer:
@@ -42,7 +46,7 @@ class Mailer:
     ) -> str:
         values = self._template_values(recipient_name, share_link, share_password, expiration_date)
         text_template_path, _ = self._template_paths(mail_type)
-        return self._render_template(text_template_path, values, html_mode=False)
+        return self._render_template(text_template_path, values, mail_type, html_mode=False)
 
     def send_tenant_file_mail(
         self,
@@ -73,8 +77,8 @@ class Mailer:
 
         values = self._template_values(recipient_name, share_link, share_password, expiration_date)
         text_template_path, html_template_path = self._template_paths(mail_type)
-        text_body = self._render_template(text_template_path, values, html_mode=False)
-        html_body = self._render_template(html_template_path, values, html_mode=True)
+        text_body = self._render_template(text_template_path, values, mail_type, html_mode=False)
+        html_body = self._render_template(html_template_path, values, mail_type, html_mode=True)
 
         return self.send_mail(
             to_address=to_address,
@@ -168,6 +172,7 @@ class Mailer:
             "share_link": str(share_link),
             "share_password": str(share_password),
             "expiration_date": str(expiration_date),
+            "online_portal_link": ONLINE_PORTAL_LINK,
         }
 
     def _missing_required_values(self, values: dict[str, object]) -> str:
@@ -176,13 +181,39 @@ class Mailer:
                 return key
         return ""
 
-    def _render_template(self, path: Path, values: dict[str, str], html_mode: bool) -> str:
+    def _render_template(self, path: Path, values: dict[str, str], mail_type: str, html_mode: bool) -> str:
+        if not path.exists():
+            raise RuntimeError(f"Mail template not found: {path}")
         template = path.read_text(encoding="utf-8")
-        rendered = template
-        for key, value in values.items():
-            replacement = escape(value, quote=True) if html_mode else value
-            rendered = rendered.replace(f"{{{{ {key} }}}}", replacement)
+        self._validate_template_placeholders(path, template, values, mail_type)
+        def replace_placeholder(match: re.Match[str]) -> str:
+            key = match.group(1)
+            value = values[key]
+            return escape(value, quote=True) if html_mode else value
+
+        rendered = PLACEHOLDER_PATTERN.sub(replace_placeholder, template)
+        remaining = sorted(set(PLACEHOLDER_PATTERN.findall(rendered)))
+        if remaining:
+            raise RuntimeError(f"Mail template {path} contains unresolved placeholders: {', '.join(remaining)}")
         return rendered
+
+    def _validate_template_placeholders(
+        self,
+        path: Path,
+        template: str,
+        values: dict[str, str],
+        mail_type: str,
+    ) -> None:
+        found = set(PLACEHOLDER_PATTERN.findall(template))
+        required = REQUIRED_TEMPLATE_PLACEHOLDERS[mail_type]
+        missing_required = sorted(required - found)
+        if missing_required:
+            raise RuntimeError(
+                f"Mail template {path} is missing required placeholders: {', '.join(missing_required)}"
+            )
+        unsupported = sorted(found - set(values))
+        if unsupported:
+            raise RuntimeError(f"Mail template {path} contains unsupported placeholders: {', '.join(unsupported)}")
 
     def _template_paths(self, mail_type: str) -> tuple[Path, Path]:
         try:
