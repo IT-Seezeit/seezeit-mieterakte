@@ -41,6 +41,12 @@ Der konfigurierte `NEXTCLOUD_TEAMFOLDER_PATH` bleibt unveraendert. Die dynamisch
 
 Mit `COPY_INITIAL_TEMPLATES=true` werden `Auszugsprotokoll.pdf` und `Einzugsprotokoll.pdf` aus `NEXTCLOUD_TEMPLATE_FOLDER_PATH` einmalig in einen Mieterordner kopiert, jedoch ausschliesslich wenn dieser im aktuellen Lauf neu erstellt wurde. Bestehende Mieterordner werden weder geprueft noch nachtraeglich repariert. Im `DRY_RUN` werden nur die geplanten Kopien angezeigt.
 
+## Optionales Postgres
+
+Postgres kann mit `USE_POSTGRES=true` als technischer Oracle-Snapshot sowie als persistenter Status- und Run-Speicher aktiviert werden. Oracle bleibt die fuehrende, ausschliesslich lesend verwendete Datenquelle. Das Schema wird nicht automatisch migriert: Vor der Aktivierung muss [sql/postgres_schema.sql](sql/postgres_schema.sql) manuell in der vorgesehenen Datenbank ausgefuehrt werden.
+
+Mit `PROCESS_FROM_POSTGRES=false` werden nach dem Snapshot weiterhin die aktuellen Oracle-Datensaetze verarbeitet. `PROCESS_FROM_POSTGRES=true` liest sie stattdessen aus dem soeben aktualisierten Snapshot. Bei aktivem Postgres verhindert der gespeicherte Versandstatus den erneuten echten Versand desselben Mailtyps; Previews setzen keinen Versandstatus.
+
 ## Benoetigte Umgebungsvariablen
 
 Siehe `.env.example`. Echte Secrets gehoeren nicht ins Repository.

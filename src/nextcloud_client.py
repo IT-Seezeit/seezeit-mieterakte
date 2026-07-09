@@ -233,8 +233,15 @@ class NextcloudClient:
         response.raise_for_status()
         share_data = self._extract_ocs_data(response)
         share_link = self._share_url(share_data) if isinstance(share_data, dict) else ""
+        share_id = str(share_data.get("id") or "") if isinstance(share_data, dict) else ""
         print(f"Share created: path={path} expire_date={expire_date}")
-        return {"path": path, "created": True, "expire_date": expire_date, "share_link": share_link}
+        return {
+            "path": path,
+            "created": True,
+            "expire_date": expire_date,
+            "share_id": share_id,
+            "share_link": share_link,
+        }
 
     def _webdav_url(self, path: str) -> str:
         base_url = self.settings.nextcloud_base_url.rstrip("/")

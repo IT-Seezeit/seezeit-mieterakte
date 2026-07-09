@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta
+from uuid import uuid4
 
 from .config import Settings, load_settings
 from .mailer import Mailer
 from .nextcloud_client import NextcloudClient
 from .oracle_client import OracleClient
 from .path_builder import build_initial_template_names, build_target_paths
+from .postgres_client import PostgresClient
 from .safety import Safety
 
 
@@ -46,6 +48,21 @@ def _log_dummy_values(settings: Settings) -> None:
         print(f"Dummy share expiration date: {settings.dummy_share_expiration_date}")
     if settings.dummy_email_to and not settings.send_emails:
         print(f"Dummy email recipient: {settings.dummy_email_to}")
+
+
+def _safe_error_text(exc: Exception, settings: Settings) -> str:
+    text = str(exc)
+    secrets = (
+        settings.oracle_password,
+        settings.nextcloud_app_password,
+        settings.mail_password,
+        settings.postgres_password,
+        settings.dummy_share_password,
+    )
+    for secret in secrets:
+        if secret:
+            text = text.replace(secret, "***")
+    return text
 
 
 def _recipient_name(row: dict[str, object], settings: Settings) -> str:
@@ -129,6 +146,14 @@ def run() -> dict[str, object]:
     settings = load_settings()
     safety = Safety(settings)
     safety.validate()
+    postgres = None
+    run_id = None
+    if settings.use_postgres:
+        postgres = PostgresClient(settings)
+        postgres.connect()
+        run_id = uuid4()
+        postgres.insert_run_log_start(run_id)
+        print(f"Postgres persistence active: true, run_id={run_id}")
     print(f"Copy initial templates active: {settings.copy_initial_templates}")
     if settings.copy_initial_templates:
         print(f"Nextcloud template folder: {settings.nextcloud_template_folder_path}")
@@ -142,8 +167,14 @@ def run() -> dict[str, object]:
     mailer = Mailer(settings, safety)
 
     rows = oracle.fetch_mieter()
-    oracle_rows = rows
+    oracle_rows = list(rows)
     print(f"Oracle records read: {len(rows)}")
+    if postgres is not None:
+        postgres.upsert_oracle_snapshot(rows)
+        print(f"Oracle snapshot records upserted: {len(rows)}")
+        if settings.process_from_postgres:
+            rows = postgres.get_snapshot_records_for_processing()
+            print(f"Records loaded from Postgres snapshot: {len(rows)}")
 
     if settings.only_dummy_person:
         dummy_person_ids = set(settings.effective_dummy_person_ids)
@@ -174,6 +205,8 @@ def run() -> dict[str, object]:
     mailed_keys = set()
 
     for row in rows:
+        persvv_id = row.get("PERSVV_ID") or row.get("persvv_id")
+        person_id = row.get("PERSON_ID") or row.get("person_id")
         try:
             paths = build_target_paths(settings.nextcloud_teamfolder_path, row)
             stats["target_paths"] += 1
@@ -259,15 +292,37 @@ def run() -> dict[str, object]:
             share_link = str(share_result.get("share_link") or "")
             expiration_date = str(share_result.get("expire_date") or share_expiration_date or "")
 
-            person_id = row.get("PERSON_ID") or row.get("person_id")
+            postgres_state = postgres.get_state(persvv_id) if postgres is not None else None
             due_mail_types = _due_mail_types(row, settings, folder_results, share_result)
             mail_results = []
+            sent_mail_types = []
 
             if not due_mail_types:
                 print(f"mail skipped, reason=not_due person_id={person_id}")
                 mail_results.append({"sent": False, "prepared": False, "skipped": True, "reason": "not_due"})
 
             for mail_type in due_mail_types:
+                sent_field = f"{mail_type}_mail_sent_at"
+                if (
+                    postgres_state
+                    and settings.send_emails
+                    and not settings.preview_emails
+                    and postgres_state.get(sent_field)
+                ):
+                    print(
+                        f"mail skipped, reason=already_sent person_id={person_id} "
+                        f"mail_type={mail_type}"
+                    )
+                    mail_results.append(
+                        {
+                            "sent": False,
+                            "prepared": False,
+                            "skipped": True,
+                            "reason": "already_sent",
+                            "mail_type": mail_type,
+                        }
+                    )
+                    continue
                 mail_key = (str(person_id), mail_type)
                 if mail_key in mailed_keys:
                     print(f"mail skipped, reason=duplicate_in_run person_id={person_id} mail_type={mail_type}")
@@ -295,8 +350,37 @@ def run() -> dict[str, object]:
                     stats["mails_prepared_or_sent"] += 1
                 if mail_result.get("preview"):
                     stats["mail_previews_created"] += 1
+                if mail_result.get("sent"):
+                    sent_mail_types.append(mail_type)
                 if str(mail_result.get("reason", "")).startswith("missing_"):
                     stats["warnings"] += 1
+
+            if postgres is not None:
+                postgres.upsert_state(
+                    persvv_id=persvv_id,
+                    person_id=person_id,
+                    vo_id=row.get("VO_ID") or row.get("vo_id"),
+                    wohnheim_id=row.get("WOHNHEIM_ID") or row.get("wohnheim_id"),
+                    person_path=paths.person_path,
+                    last_status="ok",
+                    last_error=None,
+                    folder_created=bool(person_folder_result.get("created")),
+                )
+                if template_result.get("copied"):
+                    postgres.mark_templates_copied(persvv_id)
+                if (
+                    share_result.get("share_id")
+                    or share_result.get("share_link")
+                    or share_result.get("expire_date")
+                ):
+                    postgres.mark_share(
+                        persvv_id,
+                        share_result.get("share_id"),
+                        share_result.get("share_link"),
+                        share_result.get("expire_date"),
+                    )
+                for sent_mail_type in sent_mail_types:
+                    postgres.mark_mail_sent(persvv_id, sent_mail_type)
 
             results.append(
                 {
@@ -310,7 +394,17 @@ def run() -> dict[str, object]:
             )
         except Exception as exc:
             stats["errors"] += 1
-            print(f"ERROR Failed to process record {row.get('PERSON_ID')}: {exc}")
+            safe_error = _safe_error_text(exc, settings)
+            print(f"ERROR Failed to process record {person_id}: {safe_error}")
+            if postgres is not None:
+                postgres.upsert_state(
+                    persvv_id=persvv_id,
+                    person_id=person_id,
+                    vo_id=row.get("VO_ID") or row.get("vo_id"),
+                    wohnheim_id=row.get("WOHNHEIM_ID") or row.get("wohnheim_id"),
+                    last_status="error",
+                    last_error=safe_error,
+                )
 
     print(f"Target paths calculated: {stats['target_paths']}")
     print(f"Folders created: {stats['folders_created']}")
@@ -326,12 +420,21 @@ def run() -> dict[str, object]:
     print(f"Warnings: {stats['warnings']}")
     print(f"Errors: {stats['errors']}")
 
-    return {
+    result = {
         "safety": safety.describe(),
         "processed": len(rows),
         "stats": stats,
         "results": results,
     }
+    if postgres is not None:
+        postgres.update_run_log_finish(
+            run_id=run_id,
+            oracle_records_read=len(oracle_rows),
+            records_processed=len(rows),
+            stats=stats,
+            result=result,
+        )
+    return result
 
 
 def main() -> None:

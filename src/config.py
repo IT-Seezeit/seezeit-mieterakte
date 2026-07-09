@@ -46,6 +46,14 @@ class Settings:
     mail_type: str
     mail_send_window_days: int
     allow_short_notice_move_in: bool
+    use_postgres: bool
+    process_from_postgres: bool
+    postgres_host: str
+    postgres_port: int
+    postgres_db: str
+    postgres_user: str
+    postgres_password: str
+    postgres_sslmode: str
 
     @property
     def effective_dummy_person_ids(self) -> tuple[str, ...]:
@@ -156,4 +164,12 @@ def load_settings() -> Settings:
         mail_type=_mail_type_env(),
         mail_send_window_days=_mail_send_window_days_env(),
         allow_short_notice_move_in=_bool_env("ALLOW_SHORT_NOTICE_MOVE_IN", True),
+        use_postgres=_bool_env("USE_POSTGRES", False),
+        process_from_postgres=_bool_env("PROCESS_FROM_POSTGRES", False),
+        postgres_host=os.getenv("POSTGRES_HOST", ""),
+        postgres_port=int(os.getenv("POSTGRES_PORT", "5432")),
+        postgres_db=os.getenv("POSTGRES_DB", ""),
+        postgres_user=os.getenv("POSTGRES_USER", ""),
+        postgres_password=os.getenv("POSTGRES_PASSWORD", ""),
+        postgres_sslmode=os.getenv("POSTGRES_SSLMODE", "prefer").strip() or "prefer",
     )
