@@ -29,17 +29,23 @@ class NextcloudClient:
             auth=(self.settings.nextcloud_username, self.settings.nextcloud_app_password),
             timeout=30,
         )
-        if response.status_code == 201:
+        if response.status_code in {200, 201}:
             return {"path": path, "created": True, "skipped_existing": False}
         if response.status_code == 405:
             return {"path": path, "created": False, "skipped_existing": True}
         if response.status_code == 409:
             if self.folder_exists(path):
-                print(f"folder exists after conflict, skipped: {path}")
+                print(f"Folder exists after 409 conflict, skipped: {path}")
                 return {"path": path, "created": False, "skipped_existing": True}
             print(f"ERROR WebDAV MKCOL conflict for {path}. Response body: {response.text}")
-        response.raise_for_status()
-        return {"path": path, "created": False, "skipped_existing": False}
+            raise RuntimeError(
+                f"WebDAV MKCOL failed for {path}: "
+                f"HTTP {response.status_code}; response body: {response.text}"
+            )
+        raise RuntimeError(
+            f"WebDAV MKCOL failed for {path}: "
+            f"HTTP {response.status_code}; response body: {response.text}"
+        )
 
     def folder_exists(self, path: str) -> bool:
         self._require_requests()
