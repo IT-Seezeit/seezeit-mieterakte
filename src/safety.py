@@ -31,6 +31,8 @@ class Safety:
             self._require_email_dummy_mode()
         if self.settings.preview_emails:
             self._require_email_preview_mode()
+        if self.settings.force_dummy_mail_send:
+            self._require_force_dummy_mail_mode()
 
     def _require_share_dummy_mode(self) -> None:
         if not self.settings.only_dummy_person:
@@ -63,4 +65,18 @@ class Safety:
             raise RuntimeError(
                 "CREATE_SHARES=true with USE_DUMMY_VALUES=true requires "
                 "DUMMY_SHARE_EXPIRATION_DATE in YYYY-MM-DD format."
+            )
+
+    def _require_force_dummy_mail_mode(self) -> None:
+        if not self.settings.only_dummy_person:
+            raise RuntimeError(
+                "FORCE_DUMMY_MAIL_SEND=true is only allowed with ONLY_DUMMY_PERSON=true."
+            )
+        if not self.settings.use_dummy_values:
+            raise RuntimeError(
+                "FORCE_DUMMY_MAIL_SEND=true requires USE_DUMMY_VALUES=true."
+            )
+        if len(self.settings.effective_dummy_person_ids) != 1:
+            raise RuntimeError(
+                "FORCE_DUMMY_MAIL_SEND=true requires exactly one configured dummy person."
             )

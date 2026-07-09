@@ -47,6 +47,8 @@ Postgres kann mit `USE_POSTGRES=true` als technischer Oracle-Snapshot sowie als 
 
 Mit `PROCESS_FROM_POSTGRES=false` werden nach dem Snapshot weiterhin die aktuellen Oracle-Datensaetze verarbeitet. `PROCESS_FROM_POSTGRES=true` liest sie stattdessen aus dem soeben aktualisierten Snapshot. Bei aktivem Postgres verhindert der gespeicherte Versandstatus den erneuten echten Versand desselben Mailtyps; Previews setzen keinen Versandstatus.
 
+`FORCE_DUMMY_MAIL_SEND=true` kann die Fälligkeitsprüfung ausschliesslich fuer einen einzelnen, mit `ONLY_DUMMY_PERSON=true` und `USE_DUMMY_VALUES=true` abgesicherten Testdatensatz uebersteuern. Der Postgres-Doppelversandschutz bleibt aktiv. Fuer gezielte Tests sollte `MAIL_TYPE=move_in` oder `MAIL_TYPE=move_out` explizit gesetzt werden.
+
 ## Benoetigte Umgebungsvariablen
 
 Siehe `.env.example`. Echte Secrets gehoeren nicht ins Repository.

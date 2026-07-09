@@ -46,6 +46,7 @@ class Settings:
     mail_type: str
     mail_send_window_days: int
     allow_short_notice_move_in: bool
+    force_dummy_mail_send: bool
     use_postgres: bool
     process_from_postgres: bool
     postgres_host: str
@@ -164,6 +165,7 @@ def load_settings() -> Settings:
         mail_type=_mail_type_env(),
         mail_send_window_days=_mail_send_window_days_env(),
         allow_short_notice_move_in=_bool_env("ALLOW_SHORT_NOTICE_MOVE_IN", True),
+        force_dummy_mail_send=_bool_env("FORCE_DUMMY_MAIL_SEND", False),
         use_postgres=_bool_env("USE_POSTGRES", False),
         process_from_postgres=_bool_env("PROCESS_FROM_POSTGRES", False),
         postgres_host=os.getenv("POSTGRES_HOST", ""),

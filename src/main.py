@@ -142,6 +142,36 @@ def _due_mail_types(
     return due
 
 
+def _forced_dummy_mail_types(
+    row: dict[str, object],
+    settings: Settings,
+) -> list[str]:
+    if settings.mail_type in {"move_in", "move_out"}:
+        return [settings.mail_type]
+
+    today = date.today()
+    beginn = _parse_date(row.get("BEGINN") or row.get("beginn"))
+    ende = _parse_date(row.get("ENDE") or row.get("ende"))
+    if beginn is not None and today < beginn:
+        return ["move_in"]
+    if ende is not None:
+        return ["move_out"]
+    return ["move_in"]
+
+
+def _mail_already_sent(
+    postgres_state: dict[str, object] | None,
+    settings: Settings,
+    mail_type: str,
+) -> bool:
+    return bool(
+        postgres_state
+        and settings.send_emails
+        and not settings.preview_emails
+        and postgres_state.get(f"{mail_type}_mail_sent_at")
+    )
+
+
 def run() -> dict[str, object]:
     settings = load_settings()
     safety = Safety(settings)
@@ -294,6 +324,9 @@ def run() -> dict[str, object]:
 
             postgres_state = postgres.get_state(persvv_id) if postgres is not None else None
             due_mail_types = _due_mail_types(row, settings, folder_results, share_result)
+            if not due_mail_types and settings.force_dummy_mail_send:
+                due_mail_types = _forced_dummy_mail_types(row, settings)
+                print("mail due check overridden for dummy test")
             mail_results = []
             sent_mail_types = []
 
@@ -302,13 +335,7 @@ def run() -> dict[str, object]:
                 mail_results.append({"sent": False, "prepared": False, "skipped": True, "reason": "not_due"})
 
             for mail_type in due_mail_types:
-                sent_field = f"{mail_type}_mail_sent_at"
-                if (
-                    postgres_state
-                    and settings.send_emails
-                    and not settings.preview_emails
-                    and postgres_state.get(sent_field)
-                ):
+                if _mail_already_sent(postgres_state, settings, mail_type):
                     print(
                         f"mail skipped, reason=already_sent person_id={person_id} "
                         f"mail_type={mail_type}"
