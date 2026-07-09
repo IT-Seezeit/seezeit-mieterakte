@@ -39,6 +39,8 @@ Mailversand und Preview verwenden `templates/mail_move_in.*` und `templates/mail
 
 Der konfigurierte `NEXTCLOUD_TEAMFOLDER_PATH` bleibt unveraendert. Die dynamischen Ordnersegmente enthalten Wohnheim, WG und Zimmer entsprechend ihrer Ebene, zum Beispiel `1160_810-Sonnenbuehl-West-I`, `1160_810-WG-45`, `1160_810-45-Zi-01-52-0` und `1160_810-45-01-52-0-202575-Tabea-Bentele`. Die statischen Unterordner werden ohne `WG` beziehungsweise `Zi` im Namen als `1160_810-45-Historie`, `1160_810-45-01-52-0-Historie` und `1160_810-45-01-52-0-Vergangene-Mieter` erzeugt.
 
+Mit `COPY_INITIAL_TEMPLATES=true` werden `Auszugsprotokoll.pdf` und `Einzugsprotokoll.pdf` aus `NEXTCLOUD_TEMPLATE_FOLDER_PATH` einmalig in einen Mieterordner kopiert, jedoch ausschliesslich wenn dieser im aktuellen Lauf neu erstellt wurde. Bestehende Mieterordner werden weder geprueft noch nachtraeglich repariert. Im `DRY_RUN` werden nur die geplanten Kopien angezeigt.
+
 ## Benoetigte Umgebungsvariablen
 
 Siehe `.env.example`. Echte Secrets gehoeren nicht ins Repository.

@@ -6,7 +6,7 @@ from .config import Settings, load_settings
 from .mailer import Mailer
 from .nextcloud_client import NextcloudClient
 from .oracle_client import OracleClient
-from .path_builder import build_target_paths
+from .path_builder import build_initial_template_names, build_target_paths
 from .safety import Safety
 
 
@@ -129,6 +129,11 @@ def run() -> dict[str, object]:
     settings = load_settings()
     safety = Safety(settings)
     safety.validate()
+    print(f"Copy initial templates active: {settings.copy_initial_templates}")
+    if settings.copy_initial_templates:
+        print(f"Nextcloud template folder: {settings.nextcloud_template_folder_path}")
+        if not settings.create_folders:
+            print("WARN Initial templates skipped: reason=create_folders_disabled")
     if settings.use_dummy_values:
         _log_dummy_values(settings)
 
@@ -154,6 +159,9 @@ def run() -> dict[str, object]:
         "target_paths": 0,
         "folders_created": 0,
         "folders_skipped_existing": 0,
+        "template_files_copied": 0,
+        "template_files_skipped": 0,
+        "template_copy_errors": 0,
         "shares_created": 0,
         "shares_updated": 0,
         "shares_skipped": 0,
@@ -181,6 +189,48 @@ def run() -> dict[str, object]:
                     stats["folders_skipped_existing"] += 1
                 if result.get("dry_run"):
                     print(f"DRY-RUN folder: {folder}")
+
+            person_folder_result = folder_results[-1]
+            template_result = {
+                "copied": 0,
+                "skipped": 0,
+                "errors": 0,
+                "reason": "disabled",
+            }
+            template_names = (
+                build_initial_template_names(row)
+                if settings.copy_initial_templates
+                else {}
+            )
+            if settings.copy_initial_templates and settings.create_folders:
+                if person_folder_result.get("created") or person_folder_result.get("dry_run"):
+                    template_result = nextcloud.copy_initial_templates(
+                        settings.nextcloud_template_folder_path,
+                        paths.person_path,
+                        template_names,
+                    )
+                    print(
+                        f"Initial templates for {paths.person_path}: "
+                        f"copied={template_result['copied']} "
+                        f"skipped={template_result['skipped']} "
+                        f"errors={template_result['errors']}"
+                    )
+                else:
+                    template_result["reason"] = "person_folder_not_created"
+                    template_result["skipped"] = len(template_names)
+                    print(
+                        f"Initial templates skipped for {paths.person_path}: "
+                        "reason=person_folder_not_created"
+                    )
+            elif settings.copy_initial_templates:
+                template_result["reason"] = "create_folders_disabled"
+                template_result["skipped"] = len(template_names)
+
+            stats["template_files_copied"] += int(template_result["copied"])
+            stats["template_files_skipped"] += int(template_result["skipped"])
+            stats["template_copy_errors"] += int(template_result["errors"])
+            if template_result["errors"]:
+                stats["errors"] += 1
 
             share_password = row.get("WEBPASSWORT") or row.get("webpasswort")
             share_expiration_date = None
@@ -253,6 +303,7 @@ def run() -> dict[str, object]:
                     "person_id": row.get("PERSON_ID") or row.get("person_id"),
                     "person_path": paths.person_path,
                     "folders": folder_results,
+                    "templates": template_result,
                     "share": share_result,
                     "mail": mail_results,
                 }
@@ -264,6 +315,9 @@ def run() -> dict[str, object]:
     print(f"Target paths calculated: {stats['target_paths']}")
     print(f"Folders created: {stats['folders_created']}")
     print(f"Existing folders skipped: {stats['folders_skipped_existing']}")
+    print(f"Template files copied: {stats['template_files_copied']}")
+    print(f"Template files skipped: {stats['template_files_skipped']}")
+    print(f"Template copy errors: {stats['template_copy_errors']}")
     print(f"Shares created: {stats['shares_created']}")
     print(f"Shares updated: {stats['shares_updated']}")
     print(f"Shares skipped: {stats['shares_skipped']}")

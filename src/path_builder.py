@@ -6,6 +6,10 @@ from pathlib import PurePosixPath
 
 
 FOLDER_PREFIX = "1160_"
+INITIAL_TEMPLATE_FILES = {
+    "Auszugsprotokoll.pdf": "Auszugsprotokoll",
+    "Einzugsprotokoll.pdf": "Einzugsprotokoll",
+}
 
 
 @dataclass(frozen=True)
@@ -114,3 +118,20 @@ def build_target_paths(root_path: str, row: dict[str, object]) -> TargetPaths:
         past_tenants_path=str(PurePosixPath(room_path) / past_tenants_folder),
         person_path=str(PurePosixPath(room_path) / person_folder),
     )
+
+
+def build_initial_template_names(row: dict[str, object]) -> dict[str, str]:
+    parsed = parse_vo_suchname(row.get("VO_SUCHNAME") or row.get("vo_suchname"))
+    wohnheim_suchname = normalize_folder_name(
+        row.get("WOHNHEIM_SUCHNAME") or row.get("wohnheim_suchname") or parsed["kst"]
+    )
+    person_id = normalize_folder_name(row.get("PERSON_ID") or row.get("person_id"))
+    name_prefix = (
+        f"{wohnheim_suchname}-{parsed['wg']}-{parsed['room']}"
+    )
+    return {
+        source_name: add_folder_prefix(
+            f"{name_prefix}-{document_name}-{person_id}.pdf"
+        )
+        for source_name, document_name in INITIAL_TEMPLATE_FILES.items()
+    }

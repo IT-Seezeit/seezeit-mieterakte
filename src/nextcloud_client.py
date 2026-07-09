@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta
+from pathlib import PurePosixPath
 from urllib.parse import quote
 from xml.etree import ElementTree
 
@@ -63,6 +64,71 @@ class NextcloudClient:
         print(f"WARN WebDAV PROPFIND failed for {path}. HTTP status code: {response.status_code}")
         print(f"Response body: {response.text}")
         return False
+
+    def copy_initial_templates(
+        self,
+        template_folder_path: str,
+        person_path: str,
+        template_names: dict[str, str],
+    ) -> dict[str, object]:
+        result: dict[str, object] = {"copied": 0, "skipped": 0, "errors": 0, "files": []}
+        files = result["files"]
+
+        for source_name, target_name in template_names.items():
+            source_path = str(PurePosixPath(template_folder_path) / source_name)
+            target_path = str(PurePosixPath(person_path) / target_name)
+            print(f"Initial template: source={source_path} target={target_name}")
+
+            if self.safety.dry_run:
+                print(f"DRY-RUN would copy initial template: {source_path} -> {target_path}")
+                result["skipped"] += 1
+                files.append({"source": source_path, "target": target_path, "dry_run": True})
+                continue
+
+            if not self.folder_exists(source_path):
+                print(f"ERROR Initial template source file is missing: {source_path}")
+                result["errors"] += 1
+                files.append({"source": source_path, "target": target_path, "error": "source_missing"})
+                continue
+
+            if self.folder_exists(target_path):
+                print(f"WARN Initial template target already exists, skipped: {target_path}")
+                result["skipped"] += 1
+                files.append({"source": source_path, "target": target_path, "skipped": True})
+                continue
+
+            response = requests.request(
+                "COPY",
+                self._webdav_url(source_path),
+                auth=(self.settings.nextcloud_username, self.settings.nextcloud_app_password),
+                headers={"Destination": self._webdav_url(target_path), "Overwrite": "F"},
+                timeout=30,
+            )
+            if response.status_code in {201, 204}:
+                print(f"Initial template copied: {source_path} -> {target_path}")
+                result["copied"] += 1
+                files.append({"source": source_path, "target": target_path, "copied": True})
+                continue
+            if response.status_code == 412:
+                print(f"WARN Initial template target already exists, skipped: {target_path}")
+                result["skipped"] += 1
+                files.append({"source": source_path, "target": target_path, "skipped": True})
+                continue
+
+            print(
+                f"ERROR WebDAV COPY failed: source={source_path} target={target_path} "
+                f"HTTP {response.status_code}; response body: {response.text}"
+            )
+            result["errors"] += 1
+            files.append(
+                {
+                    "source": source_path,
+                    "target": target_path,
+                    "error": f"http_{response.status_code}",
+                }
+            )
+
+        return result
 
     def create_share(
         self,

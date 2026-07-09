@@ -15,6 +15,7 @@ except ModuleNotFoundError:
 class Settings:
     dry_run: bool
     create_folders: bool
+    copy_initial_templates: bool
     create_shares: bool
     send_emails: bool
     preview_emails: bool
@@ -30,6 +31,7 @@ class Settings:
     nextcloud_username: str
     nextcloud_app_password: str
     nextcloud_teamfolder_path: str
+    nextcloud_template_folder_path: str
     nextcloud_teamfolder_id: str
     oracle_host: str
     oracle_port: int
@@ -116,6 +118,7 @@ def load_settings() -> Settings:
     return Settings(
         dry_run=_bool_env("DRY_RUN", True),
         create_folders=_bool_env("CREATE_FOLDERS", False),
+        copy_initial_templates=_bool_env("COPY_INITIAL_TEMPLATES", False),
         create_shares=_bool_env("CREATE_SHARES", False),
         send_emails=_bool_env("SEND_EMAILS", False),
         preview_emails=_bool_env("PREVIEW_EMAILS", False),
@@ -133,6 +136,11 @@ def load_settings() -> Settings:
         nextcloud_teamfolder_path=os.getenv(
             "NEXTCLOUD_TEAMFOLDER_PATH",
             "1000_Leistungsabteilungen/1100_SW/1160_SW_Mieterakten",
+        ),
+        nextcloud_template_folder_path=os.getenv(
+            "NEXTCLOUD_TEMPLATE_FOLDER_PATH",
+            "1000_Leistungsabteilungen/1100_SW/1160_Mieterakten/"
+            "1160_Systemdateien/Vorlagen",
         ),
         nextcloud_teamfolder_id=os.getenv("NEXTCLOUD_TEAMFOLDER_ID", ""),
         oracle_host=os.getenv("ORACLE_HOST", ""),

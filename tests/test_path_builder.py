@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from src.path_builder import build_target_paths
+from src.path_builder import build_initial_template_names, build_target_paths
 
 
 class BuildTargetPathsTests(TestCase):
@@ -86,4 +86,23 @@ class BuildTargetPathsTests(TestCase):
                 "/1160_810-00-Zi-12/"
                 "1160_810-00-12-Vergangene-Mieter"
             )
+        )
+
+    def test_initial_template_names_use_normalized_location_and_person_id(self) -> None:
+        names = build_initial_template_names(
+            {
+                "VO_SUCHNAME": "810-45-01-52-0",
+                "WOHNHEIM_SUCHNAME": "810",
+                "PERSON_ID": "202575",
+            }
+        )
+
+        self.assertEqual(
+            names,
+            {
+                "Auszugsprotokoll.pdf":
+                    "1160_810-45-01-52-0-Auszugsprotokoll-202575.pdf",
+                "Einzugsprotokoll.pdf":
+                    "1160_810-45-01-52-0-Einzugsprotokoll-202575.pdf",
+            },
         )
