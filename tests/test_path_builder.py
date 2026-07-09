@@ -24,7 +24,7 @@ class BuildTargetPathsTests(TestCase):
         self.assertEqual(paths.wg_path, f"{base}/1160_810-WG-45")
         self.assertEqual(
             paths.wg_history_path,
-            f"{base}/1160_810-WG-45/1160_810-WG-45-Historie",
+            f"{base}/1160_810-WG-45/1160_810-45-Historie",
         )
         self.assertEqual(
             paths.room_path,
@@ -33,12 +33,12 @@ class BuildTargetPathsTests(TestCase):
         self.assertEqual(
             paths.room_history_path,
             f"{base}/1160_810-WG-45/1160_810-45-Zi-01-52-0/"
-            "1160_810-45-Zi-01-52-0-Historie",
+            "1160_810-45-01-52-0-Historie",
         )
         self.assertEqual(
             paths.past_tenants_path,
             f"{base}/1160_810-WG-45/1160_810-45-Zi-01-52-0/"
-            "1160_810-45-Zi-01-52-0-Vergangene-Mieter",
+            "1160_810-45-01-52-0-Vergangene-Mieter",
         )
         self.assertEqual(
             paths.person_path,
@@ -62,7 +62,7 @@ class BuildTargetPathsTests(TestCase):
         self.assertTrue(paths.wg_path.endswith("/1160_810-WG-00"))
         self.assertTrue(
             paths.wg_history_path.endswith(
-                "/1160_810-WG-00/1160_810-WG-00-Historie"
+                "/1160_810-WG-00/1160_810-00-Historie"
             )
         )
         self.assertTrue(
@@ -74,5 +74,16 @@ class BuildTargetPathsTests(TestCase):
             paths.person_path.endswith(
                 "/1160_810-WG-00/1160_810-00-Zi-12/"
                 "1160_810-00-12-1-Test-Person"
+            )
+        )
+        self.assertTrue(
+            paths.room_history_path.endswith(
+                "/1160_810-00-Zi-12/1160_810-00-12-Historie"
+            )
+        )
+        self.assertTrue(
+            paths.past_tenants_path.endswith(
+                "/1160_810-00-Zi-12/"
+                "1160_810-00-12-Vergangene-Mieter"
             )
         )

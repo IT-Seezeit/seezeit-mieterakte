@@ -92,9 +92,13 @@ def build_target_paths(root_path: str, row: dict[str, object]) -> TargetPaths:
     wg_folder = add_folder_prefix(wg_base_name)
     room_folder = add_folder_prefix(room_base_name)
     person_folder = add_folder_prefix(person_base_name)
-    wg_history_folder = f"{wg_folder}-Historie"
-    room_history_folder = f"{room_folder}-Historie"
-    past_tenants_folder = f"{room_folder}-Vergangene-Mieter"
+    history_base_name = f"{wohnheim_suchname}-{parsed['wg']}"
+    room_history_base_name = f"{history_base_name}-{parsed['room']}"
+    wg_history_folder = add_folder_prefix(f"{history_base_name}-Historie")
+    room_history_folder = add_folder_prefix(f"{room_history_base_name}-Historie")
+    past_tenants_folder = add_folder_prefix(
+        f"{room_history_base_name}-Vergangene-Mieter"
+    )
 
     root = PurePosixPath(root_path)
     residence_path = str(root / residence_folder)
