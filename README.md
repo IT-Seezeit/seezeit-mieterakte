@@ -37,7 +37,7 @@ Mailversand und Preview verwenden `templates/mail_move_in.*` und `templates/mail
 
 ## Nextcloud-Pfade
 
-Der konfigurierte `NEXTCLOUD_TEAMFOLDER_PATH` bleibt unveraendert. Alle dynamisch erzeugten Ordnersegmente darunter erhalten den Prefix `1160_`, zum Beispiel `1160_WG-45` und `1160_Zi-01-52-0`. Historienordner tragen ihren Bezug im Namen: `1160_WG-45-Historie`, `1160_Zi-01-52-0-Historie` und `1160_Zi-01-52-0-Vergangene-Mieter`.
+Der konfigurierte `NEXTCLOUD_TEAMFOLDER_PATH` bleibt unveraendert. Die dynamischen Ordnersegmente enthalten Wohnheim, WG und Zimmer entsprechend ihrer Ebene, zum Beispiel `1160_810-Sonnenbuehl-West-I`, `1160_810-WG-45`, `1160_810-45-Zi-01-52-0` und `1160_810-45-01-52-0-202575-Tabea-Bentele`. Historienordner werden analog als `1160_810-WG-45-Historie`, `1160_810-45-Zi-01-52-0-Historie` und `1160_810-45-Zi-01-52-0-Vergangene-Mieter` erzeugt.
 
 ## Benoetigte Umgebungsvariablen
 

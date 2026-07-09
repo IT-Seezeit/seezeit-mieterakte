@@ -21,31 +21,37 @@ class BuildTargetPathsTests(TestCase):
             "1000_Leistungsabteilungen/1100_SW/1160_SW_Mieterakten/"
             "1160_810-Sonnenbuehl-West-I"
         )
-        self.assertEqual(paths.wg_path, f"{base}/1160_WG-45")
+        self.assertEqual(paths.wg_path, f"{base}/1160_810-WG-45")
         self.assertEqual(
             paths.wg_history_path,
-            f"{base}/1160_WG-45/1160_WG-45-Historie",
+            f"{base}/1160_810-WG-45/1160_810-WG-45-Historie",
         )
-        self.assertEqual(paths.room_path, f"{base}/1160_WG-45/1160_Zi-01-52-0")
+        self.assertEqual(
+            paths.room_path,
+            f"{base}/1160_810-WG-45/1160_810-45-Zi-01-52-0",
+        )
         self.assertEqual(
             paths.room_history_path,
-            f"{base}/1160_WG-45/1160_Zi-01-52-0/1160_Zi-01-52-0-Historie",
+            f"{base}/1160_810-WG-45/1160_810-45-Zi-01-52-0/"
+            "1160_810-45-Zi-01-52-0-Historie",
         )
         self.assertEqual(
             paths.past_tenants_path,
-            f"{base}/1160_WG-45/1160_Zi-01-52-0/"
-            "1160_Zi-01-52-0-Vergangene-Mieter",
+            f"{base}/1160_810-WG-45/1160_810-45-Zi-01-52-0/"
+            "1160_810-45-Zi-01-52-0-Vergangene-Mieter",
         )
         self.assertEqual(
             paths.person_path,
-            f"{base}/1160_WG-45/1160_Zi-01-52-0/1160_202575-Tabea-Bentele",
+            f"{base}/1160_810-WG-45/1160_810-45-Zi-01-52-0/"
+            "1160_810-45-01-52-0-202575-Tabea-Bentele",
         )
 
     def test_single_apartment_uses_wg_00_in_history_name(self) -> None:
         paths = build_target_paths(
             "teamfolder",
             {
-                "VO_SUCHNAME": "810-0-12",
+                "VO_SUCHNAME": "810- 0 -12",
+                "WOHNHEIM_SUCHNAME": "810",
                 "WOHNHEIM_NAME": "Wohnheim",
                 "PERSON_ID": "1",
                 "VORNAME": "Test",
@@ -53,7 +59,20 @@ class BuildTargetPathsTests(TestCase):
             },
         )
 
-        self.assertTrue(paths.wg_path.endswith("/1160_WG-00"))
+        self.assertTrue(paths.wg_path.endswith("/1160_810-WG-00"))
         self.assertTrue(
-            paths.wg_history_path.endswith("/1160_WG-00/1160_WG-00-Historie")
+            paths.wg_history_path.endswith(
+                "/1160_810-WG-00/1160_810-WG-00-Historie"
+            )
+        )
+        self.assertTrue(
+            paths.room_path.endswith(
+                "/1160_810-WG-00/1160_810-00-Zi-12"
+            )
+        )
+        self.assertTrue(
+            paths.person_path.endswith(
+                "/1160_810-WG-00/1160_810-00-Zi-12/"
+                "1160_810-00-12-1-Test-Person"
+            )
         )

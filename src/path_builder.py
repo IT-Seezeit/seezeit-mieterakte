@@ -60,7 +60,9 @@ def parse_vo_suchname(vo_suchname: object) -> dict[str, str]:
         raise ValueError(f"Invalid VO_Suchname format: {vo_suchname!r}")
 
     kst, wg_number, room_number = parts
-    normalized_wg = "00" if wg_number == "0" else normalize_folder_name(wg_number)
+    normalized_wg = normalize_folder_name(wg_number)
+    if normalized_wg == "0":
+        normalized_wg = "00"
     return {
         "kst": normalize_folder_name(kst),
         "wg": normalized_wg,
@@ -81,9 +83,15 @@ def build_target_paths(root_path: str, row: dict[str, object]) -> TargetPaths:
     name = normalize_folder_name(row.get("NAME") or row.get("name"))
 
     residence_folder = add_folder_prefix(f"{wohnheim_suchname}-{wohnheim_name}")
-    wg_folder = add_folder_prefix(f"WG-{parsed['wg']}")
-    room_folder = add_folder_prefix(f"Zi-{parsed['room']}")
-    person_folder = add_folder_prefix(f"{person_id}-{vorname}-{name}")
+    wg_base_name = f"{wohnheim_suchname}-WG-{parsed['wg']}"
+    room_base_name = f"{wohnheim_suchname}-{parsed['wg']}-Zi-{parsed['room']}"
+    person_base_name = (
+        f"{wohnheim_suchname}-{parsed['wg']}-{parsed['room']}-"
+        f"{person_id}-{vorname}-{name}"
+    )
+    wg_folder = add_folder_prefix(wg_base_name)
+    room_folder = add_folder_prefix(room_base_name)
+    person_folder = add_folder_prefix(person_base_name)
     wg_history_folder = f"{wg_folder}-Historie"
     room_history_folder = f"{room_folder}-Historie"
     past_tenants_folder = f"{room_folder}-Vergangene-Mieter"
