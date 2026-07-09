@@ -33,8 +33,30 @@ class NextcloudClient:
             return {"path": path, "created": True, "skipped_existing": False}
         if response.status_code == 405:
             return {"path": path, "created": False, "skipped_existing": True}
+        if response.status_code == 409:
+            if self.folder_exists(path):
+                print(f"folder exists after conflict, skipped: {path}")
+                return {"path": path, "created": False, "skipped_existing": True}
+            print(f"ERROR WebDAV MKCOL conflict for {path}. Response body: {response.text}")
         response.raise_for_status()
         return {"path": path, "created": False, "skipped_existing": False}
+
+    def folder_exists(self, path: str) -> bool:
+        self._require_requests()
+        response = requests.request(
+            "PROPFIND",
+            self._webdav_url(path),
+            auth=(self.settings.nextcloud_username, self.settings.nextcloud_app_password),
+            headers={"Depth": "0"},
+            timeout=30,
+        )
+        if response.status_code in {200, 207}:
+            return True
+        if response.status_code == 404:
+            return False
+        print(f"WARN WebDAV PROPFIND failed for {path}. HTTP status code: {response.status_code}")
+        print(f"Response body: {response.text}")
+        return False
 
     def create_share(
         self,
